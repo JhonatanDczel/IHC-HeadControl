@@ -22,7 +22,29 @@ class EyeMouseApp:
 
         self.screenWidth, self.screenHeight = pyautogui.size()
 
+        self.action_area = {
+            "left": 0.3,  # 30% de la pantalla desde la izquierda
+            "right": 0.7,  # 70% de la pantalla desde la izquierda
+            "top": 0.3,  # 30% de la pantalla desde la parte superior
+            "bottom": 0.7,  # 70% de la pantalla desde la parte superior
+        }
+
         self.update_frame()
+
+    def map_nose_to_cursor(self, nose_x, nose_y, action_area, screenWidth, screenHeight):
+        # Normaliza la posición de la nariz dentro del rectángulo de acción
+        normalized_x = (nose_x - action_area["left"]) / (action_area["right"] - action_area["left"])
+        normalized_y = (nose_y - action_area["top"]) / (action_area["bottom"] - action_area["top"])
+
+        # Convierte la posición normalizada a coordenadas de pantalla
+        cursor_x = int(normalized_x * screenWidth)
+        cursor_y = int(normalized_y * screenHeight)
+
+        # Asegúrate de que el cursor no salga de los límites de la pantalla
+        cursor_x = max(0, min(cursor_x, screenWidth))
+        cursor_y = max(0, min(cursor_y, screenHeight))
+
+        return cursor_x, cursor_y
 
     def update_frame(self):
         ret, image = self.fr.read()
@@ -42,6 +64,26 @@ class EyeMouseApp:
         if allFaces:
             oneFacePoints = allFaces[0].landmark
 
+            nose_landmark = oneFacePoints[1]
+            nose_x = int(nose_landmark.x * windowWidth)
+            nose_y = int(nose_landmark.y * windowHieght)
+
+            if (self.action_area["left"] * windowWidth < nose_x < self.action_area["right"] * windowWidth and
+                self.action_area["top"] * windowHieght < nose_y < self.action_area["bottom"] * windowHieght):
+                mouseX, mouseY = self.map_nose_to_cursor(nose_x, nose_y, windowWidth, windowHieght)
+                smoothed_x, smoothed_y = self.smooth_movement(mouseX, mouseY)
+                pyautogui.moveTo(smoothed_x, smoothed_y)
+
+            cv.rectangle(
+                image,
+                (int(self.action_area["left"] * windowWidth), int(self.action_area["top"] * windowHieght)),
+                (int(self.action_area["right"] * windowWidth), int(self.action_area["bottom"] * windowHieght)),
+                (255, 0, 0), 2
+            )
+
+            cv.circle(image, (nose_x, nose_y), 5, (0, 255, 255), -1)
+
+
             rightEye = [oneFacePoints[374], oneFacePoints[386]]
             for id, landMark in enumerate(rightEye):
                 x = int(landMark.x * windowWidth)
@@ -60,9 +102,6 @@ class EyeMouseApp:
                 y = int(landMark.y * windowHieght)
                 cv.circle(image, (x, y), 2, (0, 0, 255))
 
-            nose_landmark = oneFacePoints[1]
-            nose_x = int(nose_landmark.x * windowWidth)
-            nose_y = int(nose_landmark.y * windowHieght)
 
 
             rightEyeClosed = (rightEye[0].y - rightEye[1].y) < 0.01
