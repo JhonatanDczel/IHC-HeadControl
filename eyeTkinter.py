@@ -3,7 +3,6 @@ import mediapipe
 import pyautogui
 import tkinter as tk
 from PIL import Image, ImageTk  # Import Pillow for image conversion
-from threading import Thread
 
 class EyeMouseApp:
     def __init__(self, root):
@@ -24,10 +23,10 @@ class EyeMouseApp:
 
         # Define rectángulo de acción
         self.action_area = {
-            "left": 0.3,  # 30% de la pantalla desde la izquierda
-            "right": 0.7,  # 70% de la pantalla desde la izquierda
-            "top": 0.3,  # 30% de la pantalla desde la parte superior
-            "bottom": 0.7,  # 70% de la pantalla desde la parte superior
+            "left": 0.3,  # 30% desde la izquierda
+            "right": 0.7,  # 70% desde la izquierda
+            "top": 0.3,  # 30% desde arriba
+            "bottom": 0.7,  # 70% desde abajo
         }
 
         # Variables de suavizado
@@ -37,12 +36,13 @@ class EyeMouseApp:
 
         self.update_frame()
 
-    def map_nose_to_cursor(self, nose_x, nose_y, windowWidth, windowHieght):
-        # Mapea la posición de la nariz dentro del área de acción a la pantalla completa
+    def map_nose_to_cursor(self, nose_x, nose_y, windowWidth, windowHeight):
+        """Mapea la posición de la nariz dentro del rectángulo al área de la pantalla."""
+        # Normalización de las coordenadas dentro del rectángulo
         normalized_x = (nose_x - self.action_area["left"] * windowWidth) / (
             (self.action_area["right"] - self.action_area["left"]) * windowWidth)
-        normalized_y = (nose_y - self.action_area["top"] * windowHieght) / (
-            (self.action_area["bottom"] - self.action_area["top"]) * windowHieght)
+        normalized_y = (nose_y - self.action_area["top"] * windowHeight) / (
+            (self.action_area["bottom"] - self.action_area["top"]) * windowHeight)
 
         # Convierte a coordenadas de pantalla
         cursor_x = int(normalized_x * self.screenWidth)
@@ -55,26 +55,25 @@ class EyeMouseApp:
         return cursor_x, cursor_y
 
     def smooth_movement(self, mouseX, mouseY):
-        # Aplica suavizado exponencial
+        """Aplica suavizado exponencial al movimiento."""
         smoothed_x = int(self.smoothing_factor * self.previous_mouse_x + (1 - self.smoothing_factor) * mouseX)
         smoothed_y = int(self.smoothing_factor * self.previous_mouse_y + (1 - self.smoothing_factor) * mouseY)
 
-        # Actualiza posiciones anteriores
         self.previous_mouse_x = smoothed_x
         self.previous_mouse_y = smoothed_y
 
         return smoothed_x, smoothed_y
 
     def update_frame(self):
+        """Actualiza el frame de video y procesa los puntos faciales."""
         ret, image = self.fr.read()
         if not ret:
-            print("No se pudo capturar la imagen")
             self.status_label.config(text="Estado: No se pudo capturar la imagen")
             self.root.after(10, self.update_frame)
             return
 
         image = cv.flip(image, 1)
-        windowHieght, windowWidth, _ = image.shape
+        windowHeight, windowWidth, _ = image.shape
 
         rgbImage = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         processImage = self.faceMesh.process(rgbImage)
@@ -86,39 +85,65 @@ class EyeMouseApp:
             # Detección de la nariz
             nose_landmark = oneFacePoints[1]
             nose_x = int(nose_landmark.x * windowWidth)
-            nose_y = int(nose_landmark.y * windowHieght)
+            nose_y = int(nose_landmark.y * windowHeight)
 
-            # Mapeo de la nariz al puntero
+            # Si la nariz está dentro del área de acción, mueve el cursor
             if (self.action_area["left"] * windowWidth < nose_x < self.action_area["right"] * windowWidth and
-                self.action_area["top"] * windowHieght < nose_y < self.action_area["bottom"] * windowHieght):
-                mouseX, mouseY = self.map_nose_to_cursor(nose_x, nose_y, windowWidth, windowHieght)
+                self.action_area["top"] * windowHeight < nose_y < self.action_area["bottom"] * windowHeight):
+                mouseX, mouseY = self.map_nose_to_cursor(nose_x, nose_y, windowWidth, windowHeight)
                 smoothed_x, smoothed_y = self.smooth_movement(mouseX, mouseY)
                 pyautogui.moveTo(smoothed_x, smoothed_y)
 
-            # Dibuja el rectángulo de acción en el video
+            # Detección de los ojos
+            rightEye = [oneFacePoints[374], oneFacePoints[386]]
+            leftEye = [oneFacePoints[145], oneFacePoints[159]]
+
+            rightEyeClosed = abs(rightEye[0].y - rightEye[1].y) < 0.01
+            leftEyeClosed = abs(leftEye[0].y - leftEye[1].y) < 0.01
+
+            if rightEyeClosed and leftEyeClosed:
+                self.status_label.config(text="Estado: Ambos ojos cerrados -> Scroll hacia abajo")
+                pyautogui.scroll(-100)
+            elif rightEyeClosed:
+                self.status_label.config(text="Estado: Ojo derecho cerrado -> Clic derecho")
+                pyautogui.rightClick()
+            elif leftEyeClosed:
+                self.status_label.config(text="Estado: Ojo izquierdo cerrado -> Clic izquierdo")
+                pyautogui.click()
+            else:
+                self.status_label.config(text="Estado: Ojos abiertos")
+
+            # Visualización de la nariz y los ojos
+            for eye in [rightEye, leftEye]:
+                for landmark in eye:
+                    x = int(landmark.x * windowWidth)
+                    y = int(landmark.y * windowHeight)
+                    cv.circle(image, (x, y), 3, (0, 255, 0), -1)
+            cv.circle(image, (nose_x, nose_y), 5, (0, 255, 255), -1)
+
+            # Dibuja el rectángulo de acción
             cv.rectangle(
                 image,
-                (int(self.action_area["left"] * windowWidth), int(self.action_area["top"] * windowHieght)),
-                (int(self.action_area["right"] * windowWidth), int(self.action_area["bottom"] * windowHieght)),
+                (int(self.action_area["left"] * windowWidth), int(self.action_area["top"] * windowHeight)),
+                (int(self.action_area["right"] * windowWidth), int(self.action_area["bottom"] * windowHeight)),
                 (255, 0, 0), 2
             )
-
-            # Visualización de la nariz
-            cv.circle(image, (nose_x, nose_y), 5, (0, 255, 255), -1)
 
         self.display_image(image)
         self.root.after(10, self.update_frame)
 
     def display_image(self, image):
+        """Muestra el video en la interfaz gráfica."""
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         image = cv.resize(image, (800, 400))
-        image = Image.fromarray(image)  # Convert OpenCV image a PIL
-        photo = ImageTk.PhotoImage(image)  # Convert PIL a ImageTk.PhotoImage
+        image = Image.fromarray(image)
+        photo = ImageTk.PhotoImage(image)
         self.canvas.create_image(0, 0, image=photo, anchor=tk.NW)
-        self.canvas.image = photo  # Mantén una referencia para evitar garbage collection
+        self.canvas.image = photo
         self.root.update_idletasks()
 
     def on_closing(self):
+        """Libera recursos al cerrar la aplicación."""
         self.fr.release()
         self.root.destroy()
 
