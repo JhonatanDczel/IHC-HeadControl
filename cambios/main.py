@@ -2,6 +2,7 @@ import cv2 as cv
 import mediapipe
 import pyautogui
 from keyboard import Keyboard
+from head_tilt_module import EyeTilt  # Importa la clase EyeTilt
 
 # Initialize Face Mesh model
 faceMesh = mediapipe.solutions.face_mesh.FaceMesh(refine_landmarks=True)
@@ -11,6 +12,9 @@ screenWidth, screenHeight = pyautogui.size()  # Get screen size
 
 # Initialize the on-screen keyboard
 keyboard = Keyboard()
+
+# Inicializar el módulo de inclinación
+eye_tilt = EyeTilt()  # Nueva línea
 
 # Define the area where the icon is located (for mode change)
 icon_x1, icon_y1 = 50, 50
@@ -72,6 +76,10 @@ while True:
         if icon_x1 < nose_x < icon_x2 and icon_y1 < nose_y < icon_y2:
             keyboard.toggle_mode()  # Switch between full keyboard and icon mode
 
+        # Detectar inclinación de ojos y procesar la inclinación
+        tilt = eye_tilt.detect_tilt(oneFacePoints)
+        eye_tilt.process_tilt(tilt)
+
         # Display the keyboard or icon on the screen
         keyboard_image = keyboard.get_keyboard_image()
 
@@ -89,3 +97,4 @@ while True:
 
 fr.release()
 cv.destroyAllWindows()
+
