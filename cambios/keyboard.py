@@ -10,6 +10,7 @@ class Keyboard:
         self.icon_offset = (50, 50)  # Icon position
         self.create_keyboard()
         self.is_full_keyboard = True  # Control to toggle between full keyboard and icon
+        self.text = ""  # To store the typed text
 
     def create_keyboard(self):
         """Draw the full on-screen keyboard."""
@@ -54,6 +55,8 @@ class Keyboard:
     def get_keyboard_image(self):
         """Return the image of the keyboard or icon."""
         if self.is_full_keyboard:
+            # Display the typed text at the top of the keyboard
+            cv.putText(self.keyboard, self.text, (50, 50), cv.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 3)
             return self.keyboard  # Full keyboard image
         else:
             icon = np.zeros((200, 200, 3), np.uint8)
@@ -63,3 +66,27 @@ class Keyboard:
     def toggle_mode(self):
         """Toggle between full keyboard and icon mode."""
         self.is_full_keyboard = not self.is_full_keyboard
+
+    def type_text(self, letter):
+        """Add the letter to the typed text."""
+        self.text += letter
+
+# Example usage (in the loop of your main program)
+# Initialize the keyboard
+keyboard = Keyboard()
+
+# Simulating a nose click for testing (replace with actual nose position logic)
+nose_x, nose_y = 200, 250  # Example coordinates of nose in your frame
+pressed_key = keyboard.detect_key_click(nose_x, nose_y)
+
+# If a key is pressed, type it
+if pressed_key:
+    keyboard.type_text(pressed_key)
+
+# Get the updated keyboard image with typed text
+keyboard_image = keyboard.get_keyboard_image()
+
+# Display the image (replace with actual video display loop in your main program)
+cv.imshow('Keyboard', keyboard_image)
+cv.waitKey(1)
+cv.destroyAllWindows()
