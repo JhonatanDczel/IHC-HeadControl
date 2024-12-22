@@ -1,3 +1,5 @@
+# head_tilt_module.py
+
 import time
 import threading
 import pyautogui
@@ -17,6 +19,7 @@ class EyeTilt:
         self.tilt_timer = None  # Temporizador para detectar sostenimiento
         self.previous_tilt = None  # Última inclinación detectada
         self.last_action_time = 0  # Registro del tiempo de la última acción
+        self.keyboard_activated = False  # Estado del teclado
 
     def detect_tilt(self, landmarks):
         """
@@ -54,7 +57,7 @@ class EyeTilt:
 
         threading.Thread(target=action_thread).start()
 
-    def process_tilt(self, tilt):
+    def process_tilt(self, tilt, keyboard):
         """
         Procesa la inclinación y ejecuta la acción si se mantiene el tiempo necesario.
         """
@@ -74,7 +77,7 @@ class EyeTilt:
             if tilt == "left":
                 self.execute_action("task_browser")  # Abre el navegador
             elif tilt == "right":
-                self.execute_action("task_alt_tab")  # Abre Alt+Tab
+                self.activate_keyboard(keyboard)  # Activar el teclado
 
             # Registro del tiempo de la última acción y reset
             self.last_action_time = current_time
@@ -85,3 +88,10 @@ class EyeTilt:
         elif not tilt:
             self.tilt_timer = None
             self.previous_tilt = None
+
+    def activate_keyboard(self, keyboard):
+        """Activa el teclado en pantalla."""
+        if not self.keyboard_activated:
+            self.keyboard_activated = True
+            print("Teclado activado.")
+            threading.Thread(target=keyboard.show_keyboard_window).start()

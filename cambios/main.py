@@ -1,3 +1,5 @@
+# main.py
+
 import cv2 as cv
 import mediapipe
 import pyautogui
@@ -19,6 +21,22 @@ eye_tilt = EyeTilt()  # Nueva línea
 # Define the area where the icon is located (for mode change)
 icon_x1, icon_y1 = 50, 50
 icon_x2, icon_y2 = 150, 150  # Coordinates of the icon area
+
+# Variables to store the position of the user's click
+click_position = None
+typed_text = ""
+
+def mouse_callback(event, x, y, flags, param):
+    global click_position, typed_text
+    if event == cv.EVENT_LBUTTONDOWN:
+        click_position = (x, y)
+        typed_text = keyboard.type_text
+        print(f"Clicked at position: {click_position}")
+        print(f"Typed text: {typed_text}")
+
+# Set the mouse callback function
+cv.namedWindow('Image')
+cv.setMouseCallback('Image', mouse_callback)
 
 while True:
     _, image = fr.read()
@@ -78,15 +96,11 @@ while True:
 
         # Detectar inclinación de ojos y procesar la inclinación
         tilt = eye_tilt.detect_tilt(oneFacePoints)
-        eye_tilt.process_tilt(tilt)
+        eye_tilt.process_tilt(tilt, keyboard)
 
-        # Display the keyboard or icon on the screen
-        keyboard_image = keyboard.get_keyboard_image()
-
-        # Redimensionar la imagen del teclado para que coincida con el tamaño de la imagen de la cámara
-        keyboard_image = cv.resize(keyboard_image, (image.shape[1], image.shape[0]))
-
-        image = cv.addWeighted(image, 0.7, keyboard_image, 0.3, 0)
+    # Display the typed text at the clicked position
+    if click_position and typed_text:
+        cv.putText(image, typed_text, click_position, cv.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
 
     cv.imshow('Image', image)
 
@@ -97,4 +111,3 @@ while True:
 
 fr.release()
 cv.destroyAllWindows()
-

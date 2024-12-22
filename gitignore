@@ -1,0 +1,13 @@
+# Dependencias de Node.js
+node_modules/
+
+# Archivos de log
+*.log
+
+# Archivos de entorno
+.env
+
+# Directorios de dependencias de IDEs
+.idea/
+.vscode/
+entorno/
