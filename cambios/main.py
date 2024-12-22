@@ -98,9 +98,9 @@ while True:
         tilt = eye_tilt.detect_tilt(oneFacePoints)
         eye_tilt.process_tilt(tilt, keyboard)
 
-    # Display the typed text at the clicked position
-    if click_position and typed_text:
-        cv.putText(image, typed_text, click_position, cv.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
+    # Display the typed text at the bottom of the window
+    cv.rectangle(image, (0, windowHeight - 50), (windowWidth, windowHeight), (0, 0, 0), -1)
+    cv.putText(image, keyboard.type_text, (10, windowHeight - 20), cv.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
 
     cv.imshow('Image', image)
 

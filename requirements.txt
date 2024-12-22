@@ -4,3 +4,4 @@ pyautogui
 tkinter
 pillow
 numpy
+pyperclip
